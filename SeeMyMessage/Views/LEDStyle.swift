@@ -38,9 +38,14 @@ enum LEDStyle {
     /// Exact rendered width of a normalized LED message at a dot size.
     /// Matches LEDMessageView: N chars x width minus one spacing.
     static func messageWidth(for message: String, dotSize: CGFloat) -> CGFloat {
-        let normalized = LEDFont.normalized(message)
-        guard !normalized.isEmpty else { return 0 }
-        return CGFloat(normalized.count) * characterWidth(for: dotSize)
+        messageWidth(forChars: LEDFont.normalized(message).count, dotSize: dotSize)
+    }
+
+    /// Width for a known character count. Lets DisplayView cache the
+    /// count once instead of re-normalizing the string every frame.
+    static func messageWidth(forChars count: Int, dotSize: CGFloat) -> CGFloat {
+        guard count > 0 else { return 0 }
+        return CGFloat(count) * characterWidth(for: dotSize)
             - characterSpacing(for: dotSize)
     }
 }

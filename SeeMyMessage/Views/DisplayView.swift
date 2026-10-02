@@ -1,11 +1,55 @@
 import SwiftUI
 import UIKit
 
+/// One copy of the LED message with the glow applied ONCE for the
+/// whole copy (not per dot). The old code put .shadow on every one
+/// of the 35 dots per character; this is one shadow per message,
+/// which is dramatically cheaper on the GPU for the same look.
+private struct LEDCopyView: View {
+    let message: String
+    let dotSize: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        LEDMessageView(message: message, dotSize: dotSize)
+            .frame(width: width, height: height)
+            .shadow(color: .red.opacity(0.5), radius: dotSize * 0.45)
+    }
+}
+
+/// Static scrolling strip: all repeated copies in one HStack.
+/// Built ONCE per settings/message (outside TimelineView) so the
+/// 60fps animation only changes .offset, never rebuilds dots.
+private struct LEDStripView: View {
+    let message: String
+    let repeatCount: Int
+    let gap: CGFloat
+    let dotSize: CGFloat
+    let copyWidth: CGFloat
+    let copyHeight: CGFloat
+
+    var body: some View {
+        HStack(spacing: gap) {
+            ForEach(0..<repeatCount, id: \.self) { _ in
+                LEDCopyView(
+                    message: message,
+                    dotSize: dotSize,
+                    width: copyWidth,
+                    height: copyHeight
+                )
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
 /// Full-width scrolling row. Gets containerWidth as a plain
 /// value from the parent GeometryReader, so the frame is
 /// exactly the landscape screen width.
 private struct ScrollContentView: View {
-    let displayMessage: String
+    let message: String
+    let charCount: Int
     let speed: Double
     let segmentStart: Date
     let playedElapsed: TimeInterval
@@ -15,31 +59,23 @@ private struct ScrollContentView: View {
     let textWidth: CGFloat
     let gap: CGFloat
     let dotSize: CGFloat
+    let repeatCount: Int
+    let period: CGFloat
+    let leadCopies: Int
+    let origin: CGFloat
+    let copyWidth: CGFloat
+    let copyHeight: CGFloat
 
     var body: some View {
-        // One copy = message + trailing gap. The strip repeats this
-        // period, so wrapping by exactly one period is invisible.
-        let period: CGFloat = textWidth + gap
-        // Copies placed LEFT of the entering copy at t=0, so the
-        // viewport is never blank — even for tiny messages like "HI".
-        // Dynamic: enough to reach back past the left edge.
-        let leadCopies: Int = {
-            guard period > 0 else { return 2 }
-            return Int(ceil(containerWidth / period)) + 1
-        }()
-        // Total copies: enough to span the screen + full travel.
-        let repeatCount: Int = {
-            guard period > 0 else { return 6 }
-            let needed = Int(ceil((containerWidth + textWidth + gap) / period)) + leadCopies + 2
-            return min(max(needed, 6), 20)
-        }()
-
         TimelineView(.animation) { context in
-            HStack(spacing: gap) {
-                ForEach(0..<repeatCount, id: \.self) { _ in
-                    LEDMessageView(message: displayMessage, dotSize: dotSize)
-                }
-            }
+            LEDStripView(
+                message: message,
+                repeatCount: repeatCount,
+                gap: gap,
+                dotSize: dotSize,
+                copyWidth: copyWidth,
+                copyHeight: copyHeight
+            )
             .offset(x: xOffset(
                 now: context.date,
                 period: period,
@@ -60,10 +96,9 @@ private struct ScrollContentView: View {
     /// keep the viewport covered for seamless entry.
     /// While paused, elapsed stays frozen so xOffset is constant.
     private func xOffset(now: Date, period: CGFloat, leadCopies: Int) -> CGFloat {
-        guard period > 0, !displayMessage.isEmpty else {
+        guard period > 0, charCount > 0 else {
             return containerWidth
         }
-        let origin = containerWidth - period * CGFloat(leadCopies)
         let elapsed = effectiveElapsed(at: now)
         let traveled = CGFloat(speed) * CGFloat(elapsed)
         let wrapped = traveled.truncatingRemainder(dividingBy: period)
@@ -110,31 +145,54 @@ struct DisplayView: View {
     }
 
     var body: some View {
+        // Normalized count for measurement (cheap Int math).
+        // Full chars are normalized inside LEDMessageView per copy.
+        let charCount = LEDFont.normalized(displayMessage).count
+        let dotSize = CGFloat(settings.dotSize)
+        let gap = CGFloat(settings.gap)
+        let textWidth = LEDStyle.messageWidth(forChars: charCount, dotSize: dotSize)
+        let copyWidth = textWidth
+        let copyHeight = LEDStyle.characterHeight(for: dotSize)
+
         ZStack {
             Color.black
                 .ignoresSafeArea()
 
             GeometryReader { geo in
-                // Configurable gap + dot size from Advanced Settings.
-                let gap = CGFloat(settings.gap)
-                let dotSize = CGFloat(settings.dotSize)
-                // Measured LED width: exact math for the dot-matrix
-                // message, so scrolling matches what is rendered.
-                let textWidth = LEDStyle.messageWidth(
-                    for: displayMessage,
-                    dotSize: dotSize
-                )
+                // Geometry-dependent values computed OUTSIDE the
+                // TimelineView closure: period/copies/origin are fixed
+                // for a given message + settings + container size.
+                // The 60fps animation only recomputes xOffset.
+                let containerWidth = geo.size.width
+                let period: CGFloat = textWidth + gap
+                let leadCopies: Int = {
+                    guard period > 0 else { return 2 }
+                    return Int(ceil(containerWidth / period)) + 1
+                }()
+                let repeatCount: Int = {
+                    guard period > 0 else { return 6 }
+                    let needed = Int(ceil((containerWidth + textWidth + gap) / period)) + leadCopies + 2
+                    return min(max(needed, 6), 20)
+                }()
+                let origin = containerWidth - period * CGFloat(leadCopies)
                 ScrollContentView(
-                    displayMessage: displayMessage,
+                    message: displayMessage,
+                    charCount: charCount,
                     speed: settings.speed,
                     segmentStart: segmentStart,
                     playedElapsed: playedElapsed,
                     isPaused: isPaused,
-                    containerWidth: geo.size.width,
+                    containerWidth: containerWidth,
                     containerHeight: geo.size.height,
                     textWidth: textWidth,
                     gap: gap,
-                    dotSize: dotSize
+                    dotSize: dotSize,
+                    repeatCount: repeatCount,
+                    period: period,
+                    leadCopies: leadCopies,
+                    origin: origin,
+                    copyWidth: copyWidth,
+                    copyHeight: copyHeight
                 )
             }
             .ignoresSafeArea()
