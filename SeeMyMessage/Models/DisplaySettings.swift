@@ -16,7 +16,7 @@ struct DisplaySettings {
     static let maxSpeed: Double = 250
 
     /// Default scrolling speed in pixels per second.
-    static let defaultSpeed: Double = 80
+    static let defaultSpeed: Double = 160
 
     /// The full range the Slider is allowed to pick from.
     static let speedRange: ClosedRange<Double> = minSpeed...maxSpeed

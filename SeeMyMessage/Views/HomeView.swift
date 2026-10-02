@@ -34,6 +34,7 @@ struct HomeView: View {
                 .font(.title3)
                 // Submit button on the keyboard dismisses it.
                 .submitLabel(.done)
+                .accessibilityLabel("Message")
 
                 // MARK: - Speed control
 
@@ -55,6 +56,7 @@ struct HomeView: View {
                         step: 1
                     )
                     // Accessibility label so VoiceOver reads the value.
+                    .accessibilityLabel("Scroll speed")
                     .accessibilityValue(settings.formattedSpeed)
 
                     HStack {
@@ -87,6 +89,7 @@ struct HomeView: View {
                             in: DisplaySettings.dotSizeRange,
                             step: 1
                         )
+                        .accessibilityLabel("LED text size")
                         .accessibilityValue(settings.formattedDotSize)
 
                         HStack {
@@ -117,6 +120,7 @@ struct HomeView: View {
                             in: DisplaySettings.gapRange,
                             step: 10
                         )
+                        .accessibilityLabel("Message gap")
                         .accessibilityValue(settings.formattedGap)
 
                         HStack {
