@@ -106,6 +106,22 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
+                            Text("LED Color")
+                                .font(.headline)
+                            Spacer()
+                            Picker("LED Color", selection: $settings.ledColor) {
+                                ForEach(LEDColor.allCases) { color in
+                                    Text(color.displayName).tag(color)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .accessibilityLabel("LED color")
+                        }
+                    }
+                    .padding(.top, 8)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
                             Text("Message Gap")
                                 .font(.headline)
                             Spacer()

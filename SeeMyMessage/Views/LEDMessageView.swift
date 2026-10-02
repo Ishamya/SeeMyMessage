@@ -9,6 +9,7 @@ import SwiftUI
 struct LEDMessageView: View {
     let message: String
     let dotSize: CGFloat
+    let ledColor: LEDColor
 
     var body: some View {
         let chars = LEDFont.normalizedChars(message)
@@ -19,6 +20,10 @@ struct LEDMessageView: View {
         let height = LEDStyle.characterHeight(for: dotSize)
         let pitch = LEDStyle.dotPitch(for: dotSize)
         let charWidth = LEDStyle.characterWidth(for: dotSize)
+        // Resolve once per body evaluation (static while scrolling),
+        // not per dot or per frame — keeps the 60fps path cheap.
+        let lit = ledColor.color
+        let unlit = ledColor.color.opacity(0.07)
         Canvas { context, _ in
             for (index, char) in chars.enumerated() {
                 let mask = LEDFont.mask(forNormalized: char)
@@ -33,9 +38,9 @@ struct LEDMessageView: View {
                             height: dotSize
                         ))
                         if bit == 1 {
-                            context.fill(circle, with: .color(.red))
+                            context.fill(circle, with: .color(lit))
                         } else {
-                            context.fill(circle, with: .color(.red.opacity(0.07)))
+                            context.fill(circle, with: .color(unlit))
                         }
                     }
                 }

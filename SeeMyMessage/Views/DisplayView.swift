@@ -8,13 +8,14 @@ import UIKit
 private struct LEDCopyView: View {
     let message: String
     let dotSize: CGFloat
+    let ledColor: LEDColor
     let width: CGFloat
     let height: CGFloat
 
     var body: some View {
-        LEDMessageView(message: message, dotSize: dotSize)
+        LEDMessageView(message: message, dotSize: dotSize, ledColor: ledColor)
             .frame(width: width, height: height)
-            .shadow(color: .red.opacity(0.5), radius: dotSize * 0.45)
+            .shadow(color: ledColor.color.opacity(0.5), radius: dotSize * 0.45)
     }
 }
 
@@ -26,6 +27,7 @@ private struct LEDStripView: View {
     let repeatCount: Int
     let gap: CGFloat
     let dotSize: CGFloat
+    let ledColor: LEDColor
     let copyWidth: CGFloat
     let copyHeight: CGFloat
 
@@ -35,6 +37,7 @@ private struct LEDStripView: View {
                 LEDCopyView(
                     message: message,
                     dotSize: dotSize,
+                    ledColor: ledColor,
                     width: copyWidth,
                     height: copyHeight
                 )
@@ -59,6 +62,7 @@ private struct ScrollContentView: View {
     let textWidth: CGFloat
     let gap: CGFloat
     let dotSize: CGFloat
+    let ledColor: LEDColor
     let repeatCount: Int
     let period: CGFloat
     let leadCopies: Int
@@ -73,6 +77,7 @@ private struct ScrollContentView: View {
                 repeatCount: repeatCount,
                 gap: gap,
                 dotSize: dotSize,
+                ledColor: ledColor,
                 copyWidth: copyWidth,
                 copyHeight: copyHeight
             )
@@ -187,6 +192,7 @@ struct DisplayView: View {
                     textWidth: textWidth,
                     gap: gap,
                     dotSize: dotSize,
+                    ledColor: settings.ledColor,
                     repeatCount: repeatCount,
                     period: period,
                     leadCopies: leadCopies,

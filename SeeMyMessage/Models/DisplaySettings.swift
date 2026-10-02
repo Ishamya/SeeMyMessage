@@ -1,4 +1,41 @@
 import Foundation
+import SwiftUI
+
+/// Available LED dot colors. Raw values are stable identifiers.
+enum LEDColor: String, CaseIterable, Identifiable {
+    case red
+    case green
+    case blue
+    case amber
+    case purple
+    case white
+
+    var id: String { rawValue }
+
+    /// User-friendly display name shown in the Home picker.
+    var displayName: String {
+        switch self {
+        case .red: return "Red"
+        case .green: return "Green"
+        case .blue: return "Blue"
+        case .amber: return "Amber"
+        case .purple: return "Purple"
+        case .white: return "White"
+        }
+    }
+
+    /// Bright LED-style dot color (not muted pastels).
+    var color: Color {
+        switch self {
+        case .red: return Color(red: 1.0, green: 0.13, blue: 0.13)
+        case .green: return Color(red: 0.13, green: 1.0, blue: 0.31)
+        case .blue: return Color(red: 0.13, green: 0.5, blue: 1.0)
+        case .amber: return Color(red: 1.0, green: 0.69, blue: 0.13)
+        case .purple: return Color(red: 0.75, green: 0.25, blue: 1.0)
+        case .white: return Color.white
+        }
+    }
+}
 
 /// The user-configurable settings for the LED display.
 ///
@@ -70,6 +107,9 @@ struct DisplaySettings {
 
     /// Diameter of one LED dot. Drives dot pitch and spacing.
     var dotSize: Double = defaultDotSize
+
+    /// Color of the lit LED dots and their glow. Default red.
+    var ledColor: LEDColor = .red
 
     // MARK: - Derived helpers
 
