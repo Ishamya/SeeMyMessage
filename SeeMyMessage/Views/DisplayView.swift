@@ -1,17 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// Reads the natural width of one LED message copy.
-private struct TextWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 /// Full-width scrolling row. Gets containerWidth as a plain
 /// value from the parent GeometryReader, so the frame is
-/// exactly the landscape screen width (fixes half-screen bug).
+/// exactly the landscape screen width.
 private struct ScrollContentView: View {
     let displayMessage: String
     let speed: Double
@@ -19,8 +11,8 @@ private struct ScrollContentView: View {
     let containerWidth: CGFloat
     let containerHeight: CGFloat
     let textWidth: CGFloat
-    let font: Font
     let gap: CGFloat
+    let dotSize: CGFloat
 
     var body: some View {
         // One copy = message + trailing gap. The strip repeats this
@@ -43,11 +35,7 @@ private struct ScrollContentView: View {
         TimelineView(.animation) { context in
             HStack(spacing: gap) {
                 ForEach(0..<repeatCount, id: \.self) { _ in
-                    Text(displayMessage)
-                        .font(font)
-                        .foregroundStyle(.red)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                    LEDMessageView(message: displayMessage, dotSize: dotSize)
                 }
             }
             .offset(x: xOffset(now: context.date, period: period, leadCopies: leadCopies))
@@ -80,9 +68,6 @@ private struct ScrollContentView: View {
 struct DisplayView: View {
     let settings: DisplaySettings
 
-    private static let ledFont: Font = .system(size: 120, weight: .heavy, design: .monospaced)
-
-    @State private var textWidth: CGFloat = 0
     @State private var startDate = Date()
 
     private var displayMessage: String {
@@ -95,8 +80,15 @@ struct DisplayView: View {
                 .ignoresSafeArea()
 
             GeometryReader { geo in
-                // Configurable gap from Home's Advanced Settings.
+                // Configurable gap + dot size from Advanced Settings.
                 let gap = CGFloat(settings.gap)
+                let dotSize = CGFloat(settings.dotSize)
+                // Measured LED width: exact math for the dot-matrix
+                // message, so scrolling matches what is rendered.
+                let textWidth = LEDStyle.messageWidth(
+                    for: displayMessage,
+                    dotSize: dotSize
+                )
                 ScrollContentView(
                     displayMessage: displayMessage,
                     speed: settings.speed,
@@ -104,28 +96,11 @@ struct DisplayView: View {
                     containerWidth: geo.size.width,
                     containerHeight: geo.size.height,
                     textWidth: textWidth,
-                    font: Self.ledFont,
-                    gap: gap
+                    gap: gap,
+                    dotSize: dotSize
                 )
             }
             .ignoresSafeArea()
-
-            Text(displayMessage)
-                .font(Self.ledFont)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .hidden()
-                .background(
-                    GeometryReader { textGeo in
-                        Color.clear.preference(
-                            key: TextWidthKey.self,
-                            value: textGeo.size.width
-                        )
-                    }
-                )
-                .onPreferenceChange(TextWidthKey.self) { newWidth in
-                    textWidth = newWidth
-                }
         }
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -134,7 +109,9 @@ struct DisplayView: View {
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
-            OrientationLock.unlock()
+            // Policy only: physical rotation is requested from
+            // HomeView.onAppear, after the transition finishes.
+            OrientationLock.noteReturnedToNormalPolicy()
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }

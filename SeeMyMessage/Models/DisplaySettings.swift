@@ -41,6 +41,21 @@ struct DisplaySettings {
     /// The full range the gap Slider is allowed to pick from.
     static let gapRange: ClosedRange<Double> = minGap...maxGap
 
+    // MARK: - Dot size constants (LED text size in pixels)
+
+    /// Minimum LED dot diameter.
+    static let minDotSize: Double = 8
+
+    /// Maximum LED dot diameter.
+    static let maxDotSize: Double = 32
+    
+
+    /// Default LED dot diameter.
+    static let defaultDotSize: Double = 28
+
+    /// The full range the dot-size Slider is allowed to pick from.
+    static let dotSizeRange: ClosedRange<Double> = minDotSize...maxDotSize
+
     // MARK: - Stored values
 
     /// The raw text the user typed. May contain leading/trailing spaces
@@ -52,6 +67,9 @@ struct DisplaySettings {
 
     /// Empty horizontal space in pixels between repeated messages.
     var gap: Double = defaultGap
+
+    /// Diameter of one LED dot. Drives dot pitch and spacing.
+    var dotSize: Double = defaultDotSize
 
     // MARK: - Derived helpers
 
@@ -85,5 +103,10 @@ struct DisplaySettings {
     /// Human-readable gap value, e.g. "280 px".
     var formattedGap: String {
         "\(Int(gap)) px"
+    }
+
+    /// Human-readable dot size, e.g. "18 px".
+    var formattedDotSize: String {
+        "\(Int(dotSize)) px"
     }
 }

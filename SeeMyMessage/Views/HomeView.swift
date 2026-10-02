@@ -76,6 +76,36 @@ struct HomeView: View {
                 DisclosureGroup("Advanced Settings") {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
+                            Text("LED Text Size")
+                                .font(.headline)
+                            Spacer()
+                            Text(settings.formattedDotSize)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+
+                        Slider(
+                            value: $settings.dotSize,
+                            in: DisplaySettings.dotSizeRange,
+                            step: 1
+                        )
+                        .accessibilityValue(settings.formattedDotSize)
+
+                        HStack {
+                            Text("8")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("28")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 8)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
                             Text("Message Gap")
                                 .font(.headline)
                             Spacer()
@@ -123,6 +153,14 @@ struct HomeView: View {
             .padding()
             .navigationTitle("SeeMyMessage")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Runs after returning from Display (post-transition).
+                // Deferred one runloop so the navigation animation has
+                // finished before iOS is asked to rotate.
+                DispatchQueue.main.async {
+                    OrientationLock.restoreHomeOrientation()
+                }
+            }
         }
     }
 }
