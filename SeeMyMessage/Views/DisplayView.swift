@@ -7,7 +7,9 @@ import UIKit
 private struct ScrollContentView: View {
     let displayMessage: String
     let speed: Double
-    let startDate: Date
+    let segmentStart: Date
+    let playedElapsed: TimeInterval
+    let isPaused: Bool
     let containerWidth: CGFloat
     let containerHeight: CGFloat
     let textWidth: CGFloat
@@ -38,7 +40,11 @@ private struct ScrollContentView: View {
                     LEDMessageView(message: displayMessage, dotSize: dotSize)
                 }
             }
-            .offset(x: xOffset(now: context.date, period: period, leadCopies: leadCopies))
+            .offset(x: xOffset(
+                now: context.date,
+                period: period,
+                leadCopies: leadCopies
+            ))
             .frame(
                 width: containerWidth,
                 height: containerHeight,
@@ -52,15 +58,25 @@ private struct ScrollContentView: View {
     /// origin = containerWidth - (textWidth + gap) * leadCopies places
     /// copy #1 fully right of the screen at t=0 while lead copies
     /// keep the viewport covered for seamless entry.
+    /// While paused, elapsed stays frozen so xOffset is constant.
     private func xOffset(now: Date, period: CGFloat, leadCopies: Int) -> CGFloat {
         guard period > 0, !displayMessage.isEmpty else {
             return containerWidth
         }
         let origin = containerWidth - period * CGFloat(leadCopies)
-        let elapsed = max(0, now.timeIntervalSince(startDate))
+        let elapsed = effectiveElapsed(at: now)
         let traveled = CGFloat(speed) * CGFloat(elapsed)
         let wrapped = traveled.truncatingRemainder(dividingBy: period)
         return origin - wrapped
+    }
+
+    /// Total played seconds as of `now`: accumulated time from past
+    /// play segments plus the current open segment (zero when paused).
+    private func effectiveElapsed(at now: Date) -> TimeInterval {
+        if isPaused {
+            return playedElapsed
+        }
+        return playedElapsed + max(0, now.timeIntervalSince(segmentStart))
     }
 }
 
@@ -68,7 +84,26 @@ private struct ScrollContentView: View {
 struct DisplayView: View {
     let settings: DisplaySettings
 
-    @State private var startDate = Date()
+    /// Dismiss action from the NavigationStack (Exit button).
+    @Environment(\.dismiss) private var dismiss
+
+    /// Seconds of played (non-paused) time banked in past segments.
+    @State private var playedElapsed: TimeInterval = 0
+
+    /// Start of the current open play segment. Ignored while paused.
+    @State private var segmentStart = Date()
+
+    /// True while the LED position is frozen.
+    @State private var isPaused = false
+
+    /// True while the Pause/Exit overlay is on screen.
+    @State private var controlsVisible = false
+
+    /// Bumps on every show/interaction; stale hide tasks exit early.
+    @State private var hideToken = 0
+
+    /// Nanoseconds of no interaction before the overlay auto-hides (3s).
+    private static let autoHideDelay: UInt64 = 3_000_000_000
 
     private var displayMessage: String {
         settings.message.replacingOccurrences(of: "\n", with: " ")
@@ -92,7 +127,9 @@ struct DisplayView: View {
                 ScrollContentView(
                     displayMessage: displayMessage,
                     speed: settings.speed,
-                    startDate: startDate,
+                    segmentStart: segmentStart,
+                    playedElapsed: playedElapsed,
+                    isPaused: isPaused,
                     containerWidth: geo.size.width,
                     containerHeight: geo.size.height,
                     textWidth: textWidth,
@@ -101,10 +138,66 @@ struct DisplayView: View {
                 )
             }
             .ignoresSafeArea()
+
+            // Tap anywhere to reveal controls (or reset hide timer).
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if controlsVisible {
+                        pokeHideTimer()
+                    } else {
+                        showControls()
+                    }
+                }
+
+            // Minimal overlay: Exit top-right, Pause bottom-center.
+            if controlsVisible {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button {
+                            pokeHideTimer()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 48, height: 48)
+                                .background(.black.opacity(0.55))
+                                .clipShape(Circle())
+                        }
+                        .accessibilityLabel("Exit display")
+                    }
+                    .padding(.top, 12)
+                    .padding(.trailing, 16)
+
+                    Spacer()
+
+                    Button {
+                        togglePause()
+                    } label: {
+                        Label(
+                            isPaused ? "Resume" : "Pause",
+                            systemImage: isPaused ? "play.fill" : "pause.fill"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .background(.black.opacity(0.55))
+                        .clipShape(Capsule())
+                    }
+                    .accessibilityLabel(isPaused ? "Resume" : "Pause")
+                    .padding(.bottom, 24)
+                }
+                .transition(.opacity)
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(controlsVisible ? .visible : .hidden, for: .navigationBar)
+        .animation(.easeInOut(duration: 0.2), value: controlsVisible)
         .onAppear {
-            startDate = Date()
+            segmentStart = Date()
             OrientationLock.lock(to: .landscape)
             UIApplication.shared.isIdleTimerDisabled = true
         }
@@ -114,6 +207,41 @@ struct DisplayView: View {
             OrientationLock.noteReturnedToNormalPolicy()
             UIApplication.shared.isIdleTimerDisabled = false
         }
+    }
+
+    // MARK: - Controls + pause timing
+
+    /// Reveals the overlay and (re)starts the 3-second auto-hide.
+    private func showControls() {
+        controlsVisible = true
+        pokeHideTimer()
+    }
+
+    /// Resets the 3-second auto-hide window. Old tasks carry a stale
+    /// token and exit without hiding, so no polling is needed.
+    private func pokeHideTimer() {
+        hideToken += 1
+        let token = hideToken
+        Task {
+            try? await Task.sleep(nanoseconds: Self.autoHideDelay)
+            if !Task.isCancelled, token == hideToken {
+                controlsVisible = false
+            }
+        }
+    }
+
+    /// Freezes or resumes the LED. Pausing banks the open segment
+    /// into playedElapsed; resuming opens a fresh segment from now.
+    /// Paused time is never added, so resume has zero jump.
+    private func togglePause() {
+        if isPaused {
+            segmentStart = Date()
+            isPaused = false
+        } else {
+            playedElapsed += max(0, Date().timeIntervalSince(segmentStart))
+            isPaused = true
+        }
+        pokeHideTimer()
     }
 }
 
