@@ -1,9 +1,6 @@
 import SwiftUI
 
 /// The first screen of the app: type a message, pick a speed, press START.
-///
-/// Phase 3: input + speed + validation + navigation to DisplayView.
-/// Still no scrolling — DisplayView is static in this phase.
 struct HomeView: View {
 
     // Single source of truth for everything on this screen.
@@ -93,11 +90,11 @@ struct HomeView: View {
                         .accessibilityValue(settings.formattedDotSize)
 
                         HStack {
-                            Text("8")
+                            Text("\(Int(DisplaySettings.minDotSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text("28")
+                            Text("\(Int(DisplaySettings.maxDotSize))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -123,11 +120,11 @@ struct HomeView: View {
                         .accessibilityValue(settings.formattedGap)
 
                         HStack {
-                            Text("50")
+                            Text("\(Int(DisplaySettings.minGap))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text("500")
+                            Text("\(Int(DisplaySettings.maxGap))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -135,24 +132,33 @@ struct HomeView: View {
                     .padding(.top, 8)
                 }
 
-                // MARK: - Start button
+                // MARK: - Start button (top-right toolbar)
 
-                // Navigates to DisplayView, passing a copy of settings.
-                // Disabled when the message is empty or whitespace-only.
-                NavigationLink {
-                    DisplayView(settings: settings)
-                } label: {
-                    Text("START")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!settings.isValid)
-
-                Spacer()
+                // The in-body START button was removed: START now lives
+                // in the navigation toolbar (top-right) below. It uses
+                // the same destination + validation, so behavior is
+                // unchanged — only the position is intentional.
+                // Extra breathing room now that the in-body START is gone.
+                Spacer(minLength: 12)
             }
             .padding()
             .navigationTitle("SeeMyMessage")
             .navigationBarTitleDisplayMode(.inline)
+            // START top-right: always visible, proper touch target,
+            // same navigation + disabled(!isValid) validation.
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        DisplayView(settings: settings)
+                    } label: {
+                        Text("START")
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(!settings.isValid)
+                }
+            }
             .onAppear {
                 // Runs after returning from Display (post-transition).
                 // Deferred one runloop so the navigation animation has
