@@ -71,6 +71,40 @@ struct HomeView: View {
                     }
                 }
 
+                // MARK: - Advanced settings
+
+                DisclosureGroup("Advanced Settings") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Message Gap")
+                                .font(.headline)
+                            Spacer()
+                            Text(settings.formattedGap)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+
+                        Slider(
+                            value: $settings.gap,
+                            in: DisplaySettings.gapRange,
+                            step: 10
+                        )
+                        .accessibilityValue(settings.formattedGap)
+
+                        HStack {
+                            Text("50")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("500")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+
                 // MARK: - Start button
 
                 // Navigates to DisplayView, passing a copy of settings.

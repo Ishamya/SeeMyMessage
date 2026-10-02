@@ -27,6 +27,20 @@ struct DisplaySettings {
     static let slowUpperBound: Double = 70
     static let normalUpperBound: Double = 140
 
+    // MARK: - Gap constants (pixels between repeated messages)
+
+    /// Minimum gap in pixels.
+    static let minGap: Double = 50
+
+    /// Maximum gap in pixels.
+    static let maxGap: Double = 500
+
+    /// Default gap in pixels.
+    static let defaultGap: Double = 280
+
+    /// The full range the gap Slider is allowed to pick from.
+    static let gapRange: ClosedRange<Double> = minGap...maxGap
+
     // MARK: - Stored values
 
     /// The raw text the user typed. May contain leading/trailing spaces
@@ -35,6 +49,9 @@ struct DisplaySettings {
 
     /// Scrolling speed in pixels per second. Set via a Slider in HomeView.
     var speed: Double = defaultSpeed
+
+    /// Empty horizontal space in pixels between repeated messages.
+    var gap: Double = defaultGap
 
     // MARK: - Derived helpers
 
@@ -63,5 +80,10 @@ struct DisplaySettings {
     /// Human-readable speed value, e.g. "80 px/s".
     var formattedSpeed: String {
         "\(Int(speed)) px/s"
+    }
+
+    /// Human-readable gap value, e.g. "280 px".
+    var formattedGap: String {
+        "\(Int(gap)) px"
     }
 }
