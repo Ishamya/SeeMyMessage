@@ -11,7 +11,8 @@ import SwiftUI
 struct SeeMyMessageApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
         }
     }
 }
+
